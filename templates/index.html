@@ -1,0 +1,70 @@
+templates/index.html<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Financial Market Sentiment Dashboard</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        h1 { margin-bottom: 20px; }
+        #chart { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Financial Market Sentiment Dashboard</h1>
+    <div id="latest-price"></div>
+    <div id="chart"></div>
+    <script>
+    function fetchData() {
+        fetch('/api/sentiment')
+            .then(response => response.json())
+            .then(data => {
+                const priceDiv = document.getElementById('latest-price');
+                if (data.latest_price !== null) {
+                    priceDiv.textContent = 'Latest SPY Price: ' + data.latest_price.toFixed(2);
+                } else {
+                    priceDiv.textContent = 'Latest SPY Price: N/A';
+                }
+                const sentiments = [
+                    {label: 'Positive', value: data.positive},
+                    {label: 'Negative', value: data.negative},
+                    {label: 'Neutral', value: data.neutral}
+                ];
+                renderChart(sentiments);
+            });
+    }
+
+    function renderChart(data) {
+        const width = 400;
+        const height = 300;
+        d3.select('#chart').selectAll('*').remove();
+        const svg = d3.select('#chart').append('svg')
+            .attr('width', width)
+            .attr('height', height);
+        const margin = {top: 20, right: 20, bottom: 30, left: 40};
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
+        const x = d3.scaleBand().domain(data.map(d => d.label)).range([0, chartWidth]).padding(0.1);
+        const y = d3.scaleLinear().domain([0, d3.max(data, d => d.value)]).nice().range([chartHeight, 0]);
+        const g = svg.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+        g.append('g')
+            .selectAll('rect')
+            .data(data)
+            .enter()
+            .append('rect')
+            .attr('x', d => x(d.label))
+            .attr('y', d => y(d.value))
+            .attr('width', x.bandwidth())
+            .attr('height', d => chartHeight - y(d.value));
+        g.append('g')
+            .attr('transform', 'translate(0,' + chartHeight + ')')
+            .call(d3.axisBottom(x));
+        g.append('g')
+            .call(d3.axisLeft(y));
+    }
+
+    fetchData();
+    setInterval(fetchData, 60000);
+    </script>
+</body>
+</html>
